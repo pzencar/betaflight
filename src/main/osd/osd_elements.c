@@ -793,6 +793,7 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
     static const int ROW_COUNT = OSD_HD_ROWS; // TODO: Support analog and different HD systems
     static const int ROW_MAX_INDEX = ROW_COUNT - 1;
     static const int STEPS_PER_ROW = 9;
+    static const int MIDDLE_STEP_OFFSET = 4;
     static const int ROW_MAX_STEP = ROW_COUNT * STEPS_PER_ROW - 1;
 
     static const int COL_COUNT = OSD_HD_COLS; // TODO: Support analog and different HD systems
@@ -819,7 +820,7 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
     const uint16_t homePos = osdElementConfig()->item_pos[OSD_ADVANCED_HORIZON];
     const int homeX = OSD_X(homePos);
     const int homeY = OSD_Y(homePos);
-    const int homeYStep = (homeY * STEPS_PER_ROW) + 4; // Find center step of homeY
+    const int homeYStep = (homeY * STEPS_PER_ROW) + MIDDLE_STEP_OFFSET;
 
     const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
     const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;

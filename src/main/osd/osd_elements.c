@@ -844,7 +844,6 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
     const int camVerFov = osdConfig()->adh_cam_ver_fov * 10;
 
     const uint16_t homePos = osdElementConfig()->item_pos[OSD_ADVANCED_HORIZON];
-    const int homeX = OSD_X(homePos);
     const int homeY = OSD_Y(homePos);
     const int homeYStep = (homeY * ADV_HOR_STEPS_PER_ROW) + ADV_HOR_MIDDLE_STEP_OFFSET;
 
@@ -854,8 +853,8 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
     const int rollFactor = (osdConfig()->adh_roll_factor > 0) ? osdConfig()->adh_roll_factor : 1;
     const float stepsPerDecDegree = (float)ADV_HOR_ROW_COUNT * (float)ADV_HOR_STEPS_PER_ROW / (float)camVerFov;
 
-    const int pitchOffsetStep = (int)((float)(camAngle - snapshot->pitch) * stepsPerDecDegree);
-    const int rollOffsetSteps = (int)((float)snapshot->roll * (float)step / (float)rollFactor);
+    const int pitchOffsetStep = (int)((float)(camAngle - snapshot.pitch) * stepsPerDecDegree);
+    const int rollOffsetSteps = (int)((float)snapshot.roll * (float)step / (float)rollFactor);
 
     const int absoluteYSteps = (osdConfig()->adh_lock_roll
                                 ? homeYStep + pitchOffsetStep
@@ -916,21 +915,12 @@ static bool advHorizonRenderMarker(osdElementParms_t *element,
         const float yPerDecDegree = (float)ADV_HOR_ROW_COUNT / (float)camVerFov;
         yOffset = (int)((float)(camAngle - decDegree) * yPerDecDegree);
 
-        xLeftOffset = osdConfig()->adh_size + 1; /* +1 for symbol */
+        xLeftOffset = osdConfig()->adh_l_sym != 0x00 ? osdConfig()->adh_size + 1 : osdConfig()->adh_size;
+        xRightOffset = osdConfig()->adh_r_sym != 0x00 ? osdConfig()->adh_size + 1 : osdConfig()->adh_size;
 
-        if (osdConfig()->adh_l_sym == 0x00) {
-            xLeftOffset--;
-        }
-
-        xRightOffset = osdConfig()->adh_size + 1; /* +1 for symbol */
-
-        if (osdConfig()->adh_r_sym == 0x00) {
-            xRightOffset--;
-        }
-
+        init = true;
         leftSide = true;
         step = size + 1;
-        init = true;
     }
 
     /* We do not care about constraining, outside screen will not be rendered and that's OK */
@@ -964,7 +954,7 @@ static bool advHorizonRenderMarker(osdElementParms_t *element,
 }
 
 static void osdBackgroundAdvancedHorizon(osdElementParms_t *element) {
-    bool renderDone;
+    bool markerDone;
     static advHorizonBgState_t state = ADV_HOR_STATE_INIT;
     static bool useMarker1;
     static bool useMarker2;
@@ -991,14 +981,14 @@ static void osdBackgroundAdvancedHorizon(osdElementParms_t *element) {
 
         case ADV_HOR_STATE_MARKER1:
             if (useMarker1) {
-                renderDone = advHorizonRenderMarker(element,
+                markerDone = advHorizonRenderMarker(element,
                                                    osdConfig()->adh_mark1_deg,
                                                    osdConfig()->adh_mark1_size,
                                                    osdConfig()->adh_mark1_l_sym,
                                                    osdConfig()->adh_mark1_r_sym,
                                                    osdConfig()->adh_mark1_d_sym);
 
-                if (renderDone) {
+                if (markerDone) {
                     state = ADV_HOR_STATE_MARKER2;
                 }
             } else {
@@ -1009,14 +999,14 @@ static void osdBackgroundAdvancedHorizon(osdElementParms_t *element) {
 
         case ADV_HOR_STATE_MARKER2:
             if (useMarker2) {
-                renderDone = advHorizonRenderMarker(element,
+                markerDone = advHorizonRenderMarker(element,
                                                    osdConfig()->adh_mark2_deg,
                                                    osdConfig()->adh_mark2_size,
                                                    osdConfig()->adh_mark2_l_sym,
                                                    osdConfig()->adh_mark2_r_sym,
                                                    osdConfig()->adh_mark2_d_sym);
 
-                if (renderDone) {
+                if (markerDone) {
                     state = ADV_HOR_STATE_MARKER3;
                 }
             } else {
@@ -1027,14 +1017,14 @@ static void osdBackgroundAdvancedHorizon(osdElementParms_t *element) {
 
         case ADV_HOR_STATE_MARKER3:
             if (useMarker3) {
-                renderDone = advHorizonRenderMarker(element,
+                markerDone = advHorizonRenderMarker(element,
                                                    osdConfig()->adh_mark3_deg,
                                                    osdConfig()->adh_mark3_size,
                                                    osdConfig()->adh_mark3_l_sym,
                                                    osdConfig()->adh_mark3_r_sym,
                                                    osdConfig()->adh_mark3_d_sym);
 
-                if (renderDone) {
+                if (markerDone) {
                     state = ADV_HOR_STATE_INIT;
                     element->rendered = true;
                 }

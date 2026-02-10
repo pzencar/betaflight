@@ -336,14 +336,17 @@ typedef struct osdConfig_s {
     uint8_t adh_mark1_size;
     uint8_t adh_mark1_l_sym;
     uint8_t adh_mark1_r_sym;
+    uint8_t adh_mark1_d_sym;
     uint8_t adh_mark2_deg;
     uint8_t adh_mark2_size;
     uint8_t adh_mark2_l_sym;
     uint8_t adh_mark2_r_sym;
+    uint8_t adh_mark2_d_sym;
     uint8_t adh_mark3_deg;
     uint8_t adh_mark3_size;
     uint8_t adh_mark3_l_sym;
     uint8_t adh_mark3_r_sym;
+    uint8_t adh_mark3_d_sym;
     uint8_t adh_lock_roll;
     uint8_t adh_invert_roll;
     uint8_t adh_invert_pitch;

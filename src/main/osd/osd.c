@@ -388,12 +388,26 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->adh_cam_ver_fov = 70;
     osdConfig->adh_roll_factor = 100;
     osdConfig->adh_size = 2;
-    osdConfig->adh_left_symbol = 0x7C;
-    osdConfig->adh_right_symbol = 0x7C;
+    osdConfig->adh_l_sym = 0x7C;
+    osdConfig->adh_r_sym = 0x7C;
+    osdConfig->adh_mark1_deg = 30;
+    osdConfig->adh_mark1_size = 2;
+    osdConfig->adh_mark1_l_sym = 0x7C;
+    osdConfig->adh_mark1_r_sym = 0x7C;
+    osdConfig->adh_mark1_d_sym = 0x17;
+    osdConfig->adh_mark2_deg = 0;
+    osdConfig->adh_mark2_size = 2;
+    osdConfig->adh_mark2_l_sym = 0x7C;
+    osdConfig->adh_mark2_r_sym = 0x7C;
+    osdConfig->adh_mark2_d_sym = 0x17;
+    osdConfig->adh_mark3_deg = 255;
+    osdConfig->adh_mark3_size = 2;
+    osdConfig->adh_mark3_l_sym = 0x7C;
+    osdConfig->adh_mark3_r_sym = 0x7C;
+    osdConfig->adh_mark3_d_sym = 0x17;
     osdConfig->adh_lock_roll = false;
     osdConfig->adh_invert_roll = false;
     osdConfig->adh_invert_pitch = false;
-    osdConfig->adh_g_multiplier = 0;
 
     osdConfig->osdProfileIndex = 1;
     osdConfig->ahInvert = false;
@@ -472,7 +486,6 @@ void pgResetFn_osdElementConfig(osdElementConfig_t *osdElementConfig)
     // Default to old fixed positions for these elements
     osdElementConfig->item_pos[OSD_CROSSHAIRS]         = OSD_POS((midCol - 2), (midRow - 1));
     osdElementConfig->item_pos[OSD_ARTIFICIAL_HORIZON] = OSD_POS((midCol - 1), (midRow - 5));
-    osdElementConfig->item_pos[OSD_ADVANCED_HORIZON]   = OSD_POS((midCol - 1), (midRow - 1));
     osdElementConfig->item_pos[OSD_HORIZON_SIDEBARS]   = OSD_POS((midCol - 1), (midRow - 1));
     osdElementConfig->item_pos[OSD_CAMERA_FRAME]       = OSD_POS((midCol - 12), (midRow - 6));
     osdElementConfig->item_pos[OSD_UP_DOWN_REFERENCE]  = OSD_POS((midCol - 2), (midRow - 1));

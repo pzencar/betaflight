@@ -173,7 +173,6 @@
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 #include "sensors/rangefinder.h"
-#include "sensors/acceleration.h"
 
 #ifdef USE_GPS_PLUS_CODES
 // located in lib/main/google/olc
@@ -207,6 +206,7 @@ typedef struct radioControls_s {
     uint8_t right_vertical;
     uint8_t right_horizontal;
 } radioControls_t;
+
 
 static const radioControls_t radioModes[4] = {
     { PITCH,    YAW,    THROTTLE,   ROLL }, // Mode 1
@@ -788,26 +788,52 @@ static void osdElementArtificialHorizon(osdElementParms_t *element)
     }
 }
 
+#define ADV_HOR_STEPS_PER_ROW 9
+#define ADV_HOR_MIDDLE_STEP_OFFSET 4
+
+#define ADV_HOR_ROW_COUNT OSD_HD_ROWS // TODO: Support analog and different HD systems
+#define ADV_HOR_ROW_MAX_INDEX (ADV_HOR_ROW_COUNT - 1)
+#define ADV_HOR_ROW_MAX_STEP ((ADV_HOR_ROW_COUNT * ADV_HOR_STEPS_PER_ROW) - 1)
+
+#define ADV_HOR_COL_COUNT OSD_HD_COLS // TODO: Support analog and different HD systems
+#define ADV_HOR_COL_MAX_INDEX (ADV_HOR_COL_COUNT - 1) // For HD. Not sure where to get this number yet
+
+typedef enum {
+    ADV_HOR_STATE_INIT = 0,
+    ADV_HOR_STATE_MARKER1,
+    ADV_HOR_STATE_MARKER2,
+    ADV_HOR_STATE_MARKER3,
+} advHorizonBgState_t;
+
+typedef struct {
+    /* Assuming change of config during render should basically never happen,
+       otherwise all config params would need to be here */
+    int pitch;
+    int roll;
+} advHorizonSnapshot_t;
+
+static void advHorizonSnapshotFlightData(osdElementParms_t *element, advHorizonSnapshot_t* snapshot) {
+    (void)element;
+    const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
+    const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;
+    snapshot->pitch = constrain(attitude.values.pitch * pitchSign, -1800, 1800);
+    snapshot->roll = constrain(attitude.values.roll * rollSign, -600, 600);
+}
+
 static void osdElementAdvancedHorizon(osdElementParms_t *element)
 {
-    static const int ROW_COUNT = OSD_HD_ROWS; // TODO: Support analog and different HD systems
-    static const int ROW_MAX_INDEX = ROW_COUNT - 1;
-    static const int STEPS_PER_ROW = 9;
-    static const int MIDDLE_STEP_OFFSET = 4;
-    static const int ROW_MAX_STEP = ROW_COUNT * STEPS_PER_ROW - 1;
-
-    static const int COL_COUNT = OSD_HD_COLS; // TODO: Support analog and different HD systems
-    static const int COL_MAX_INDEX = COL_COUNT - 1; // For HD. Not sure where to get this number yet
-
     /*-------------------------------------------------*/
 
     static bool inProgress = false;
     static uint8_t size;
     static int step;
 
+    static advHorizonSnapshot_t snapshot;
+
     if (!inProgress) {
-        size = osdConfig()->adh_size;  /* Size cannot be 0. Handled in CLI settings */
+        size = osdConfig()->adh_size;
         step = -size;
+        advHorizonSnapshotFlightData(element, &snapshot);
         inProgress = true;
     }
 
@@ -820,40 +846,24 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
     const uint16_t homePos = osdElementConfig()->item_pos[OSD_ADVANCED_HORIZON];
     const int homeX = OSD_X(homePos);
     const int homeY = OSD_Y(homePos);
-    const int homeYStep = (homeY * STEPS_PER_ROW) + MIDDLE_STEP_OFFSET;
+    const int homeYStep = (homeY * ADV_HOR_STEPS_PER_ROW) + ADV_HOR_MIDDLE_STEP_OFFSET;
 
-    const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
-    const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;
-    const int pitchAngle = constrain(attitude.values.pitch * pitchSign, -1800, 1800);
-    const int rollAngle = constrain(attitude.values.roll* rollSign, -600, 600);
 
     /*-------------------------------------------------*/
 
     const int rollFactor = (osdConfig()->adh_roll_factor > 0) ? osdConfig()->adh_roll_factor : 1;
-    const float stepsPerDecDegree = (float)ROW_COUNT * (float)STEPS_PER_ROW / (float)camVerFov;
+    const float stepsPerDecDegree = (float)ADV_HOR_ROW_COUNT * (float)ADV_HOR_STEPS_PER_ROW / (float)camVerFov;
 
-    const int pitchOffsetStep = (int)((float)(camAngle - pitchAngle) * stepsPerDecDegree);
-    const int rollOffsetSteps = (int)((float)rollAngle * (float)step / (float)rollFactor);
+    const int pitchOffsetStep = (int)((float)(camAngle - snapshot->pitch) * stepsPerDecDegree);
+    const int rollOffsetSteps = (int)((float)snapshot->roll * (float)step / (float)rollFactor);
 
     const int absoluteYSteps = (osdConfig()->adh_lock_roll
                                 ? homeYStep + pitchOffsetStep
                                 : homeYStep + pitchOffsetStep - rollOffsetSteps);
-    const int absoluteY = constrain(absoluteYSteps / STEPS_PER_ROW, 0, ROW_MAX_INDEX);
+    const int absoluteY = constrain(absoluteYSteps / ADV_HOR_STEPS_PER_ROW, 0, ADV_HOR_ROW_MAX_INDEX);
 
     element->elemOffsetY = absoluteY - homeY;
-
-    /*-------------------------------------------------*/
-
-    const float lateralG = acc.accADC.y / (float)acc.dev.acc_1G;
-    int gXOffset = (int)(lateralG * (osdConfig()->adh_g_multiplier / 10.0f));
-
-    if ((homeX + size + gXOffset) > COL_MAX_INDEX) {
-        gXOffset = COL_MAX_INDEX - (homeX + size);
-    } else if ((homeX - size + gXOffset) < 0) {
-        gXOffset = -(homeX - size);
-    }
-
-    element->elemOffsetX = step + gXOffset;
+    element->elemOffsetX = step;
 
     /*-------------------------------------------------*/
 
@@ -861,25 +871,185 @@ static void osdElementAdvancedHorizon(osdElementParms_t *element)
 
     if (absoluteYSteps < 0) {
         barSymbol = SYM_ADH_BAR_0;
-    } else if (absoluteYSteps > ROW_MAX_STEP) {
+    } else if (absoluteYSteps > ADV_HOR_ROW_MAX_STEP) {
         barSymbol = SYM_ADH_BAR_8;
     } else {
-        barSymbol = SYM_ADH_BAR_0 + (absoluteYSteps % STEPS_PER_ROW);
+        barSymbol = SYM_ADH_BAR_0 + (absoluteYSteps % ADV_HOR_STEPS_PER_ROW);
     }
 
     /*-------------------------------------------------*/
 
     if (step == -size) {
-        tfp_sprintf(element->buff, "%c", osdConfig()->adh_left_symbol);
+        tfp_sprintf(element->buff, "%c", osdConfig()->adh_l_sym);
         element->rendered = false;
         step++;
     } else if (step == size) {
-        tfp_sprintf(element->buff, "%c", osdConfig()->adh_right_symbol);
+        tfp_sprintf(element->buff, "%c", osdConfig()->adh_r_sym);
         inProgress = false;
     } else {
         tfp_sprintf(element->buff, "%c", barSymbol);
         element->rendered = false;
         step++;
+    }
+}
+
+static bool advHorizonRenderMarker(osdElementParms_t *element,
+                                   uint8_t degree,
+                                   uint8_t size,
+                                   uint8_t lSym,
+                                   uint8_t rSym,
+                                   uint8_t dSym) {
+    static bool init = false;
+    static bool leftSide;
+    static int step;
+    static int yOffset;
+    static int xLeftOffset;
+    static int xRightOffset;
+
+    bool rendered = false;
+
+    if (!init) {
+        const int camAngle = osdConfig()->adh_cam_angle * 10;
+        const int camVerFov = osdConfig()->adh_cam_ver_fov * 10;
+        const int decDegree = degree * 10;
+
+        const float yPerDecDegree = (float)ADV_HOR_ROW_COUNT / (float)camVerFov;
+        yOffset = (int)((float)(camAngle - decDegree) * yPerDecDegree);
+
+        xLeftOffset = osdConfig()->adh_size + 1; /* +1 for symbol */
+
+        if (osdConfig()->adh_l_sym == 0x00) {
+            xLeftOffset--;
+        }
+
+        xRightOffset = osdConfig()->adh_size + 1; /* +1 for symbol */
+
+        if (osdConfig()->adh_r_sym == 0x00) {
+            xRightOffset--;
+        }
+
+        leftSide = true;
+        step = size + 1;
+        init = true;
+    }
+
+    /* We do not care about constraining, outside screen will not be rendered and that's OK */
+    element->elemOffsetY = yOffset;
+
+    if (leftSide) {
+        element->elemOffsetX = -(xLeftOffset + step - 1);
+
+        if (step != 1) {
+            tfp_sprintf(element->buff, "%c", dSym);
+            step--;
+        } else {
+            tfp_sprintf(element->buff, "%c", lSym);
+            step = size + 1;
+            leftSide = false;
+        }
+    } else {
+        element->elemOffsetX = xRightOffset + step - 1;
+
+        if (step != 1) {
+            tfp_sprintf(element->buff, "%c", dSym);
+            step--;
+        } else {
+            tfp_sprintf(element->buff, "%c", rSym);
+            init = false;
+            rendered = true;
+        }
+    }
+
+    return rendered;
+}
+
+static void osdBackgroundAdvancedHorizon(osdElementParms_t *element) {
+    bool renderDone;
+    static advHorizonBgState_t state = ADV_HOR_STATE_INIT;
+    static bool useMarker1;
+    static bool useMarker2;
+    static bool useMarker3;
+
+    element->rendered = false;
+    element->drawElement = true;
+
+    switch (state) {
+        case ADV_HOR_STATE_INIT:
+            useMarker1 = (element->type == OSD_ELEMENT_TYPE_2)
+                         || (element->type == OSD_ELEMENT_TYPE_3)
+                         || (element->type == OSD_ELEMENT_TYPE_4);
+            useMarker2 = (element->type == OSD_ELEMENT_TYPE_3)
+                         || (element->type == OSD_ELEMENT_TYPE_4);
+            useMarker3 = (element->type == OSD_ELEMENT_TYPE_4);
+            /* TODO: Remove */
+            useMarker1 = true;
+            useMarker2 = true;
+            useMarker3 = true;
+            state = ADV_HOR_STATE_MARKER1;
+            element->drawElement = false;
+            break;
+
+        case ADV_HOR_STATE_MARKER1:
+            if (useMarker1) {
+                renderDone = advHorizonRenderMarker(element,
+                                                   osdConfig()->adh_mark1_deg,
+                                                   osdConfig()->adh_mark1_size,
+                                                   osdConfig()->adh_mark1_l_sym,
+                                                   osdConfig()->adh_mark1_r_sym,
+                                                   osdConfig()->adh_mark1_d_sym);
+
+                if (renderDone) {
+                    state = ADV_HOR_STATE_MARKER2;
+                }
+            } else {
+                state = ADV_HOR_STATE_MARKER2;
+                element->drawElement = false;
+            }
+            break;
+
+        case ADV_HOR_STATE_MARKER2:
+            if (useMarker2) {
+                renderDone = advHorizonRenderMarker(element,
+                                                   osdConfig()->adh_mark2_deg,
+                                                   osdConfig()->adh_mark2_size,
+                                                   osdConfig()->adh_mark2_l_sym,
+                                                   osdConfig()->adh_mark2_r_sym,
+                                                   osdConfig()->adh_mark2_d_sym);
+
+                if (renderDone) {
+                    state = ADV_HOR_STATE_MARKER3;
+                }
+            } else {
+                state = ADV_HOR_STATE_MARKER3;
+                element->drawElement = false;
+            }
+            break;
+
+        case ADV_HOR_STATE_MARKER3:
+            if (useMarker3) {
+                renderDone = advHorizonRenderMarker(element,
+                                                   osdConfig()->adh_mark3_deg,
+                                                   osdConfig()->adh_mark3_size,
+                                                   osdConfig()->adh_mark3_l_sym,
+                                                   osdConfig()->adh_mark3_r_sym,
+                                                   osdConfig()->adh_mark3_d_sym);
+
+                if (renderDone) {
+                    state = ADV_HOR_STATE_INIT;
+                    element->rendered = true;
+                }
+            } else {
+                state = ADV_HOR_STATE_INIT;
+                element->drawElement = false;
+                element->rendered = true;
+            }
+            break;
+
+        default:
+            state = ADV_HOR_STATE_INIT;
+            element->drawElement = false;
+            element->rendered = true;
+            break;
     }
 }
 
@@ -2200,6 +2370,9 @@ const osdElementDrawFn osdElementBackgroundFunction[OSD_ITEM_COUNT] = {
     [OSD_STICK_OVERLAY_RIGHT]     = osdBackgroundStickOverlay,
 #endif
     [OSD_PILOT_NAME]              = osdBackgroundPilotName,
+#ifdef USE_ACC
+    [OSD_ADVANCED_HORIZON]        = osdBackgroundAdvancedHorizon,
+#endif
 };
 
 static void osdAddActiveElement(osd_items_e element)

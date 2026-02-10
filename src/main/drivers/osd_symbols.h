@@ -109,6 +109,17 @@
 #define SYM_AH_BAR9_7               0x87
 #define SYM_AH_BAR9_8               0x88
 
+// AC Bars
+#define SYM_ADH_BAR_0               0x80
+#define SYM_ADH_BAR_1               0x81
+#define SYM_ADH_BAR_2               0x82
+#define SYM_ADH_BAR_3               0x83
+#define SYM_ADH_BAR_4               0x84
+#define SYM_ADH_BAR_5               0x85
+#define SYM_ADH_BAR_6               0x86
+#define SYM_ADH_BAR_7               0x87
+#define SYM_ADH_BAR_8               0x88
+
 // Progress bar
 #define SYM_PB_START                0x8A
 #define SYM_PB_FULL                 0x8B

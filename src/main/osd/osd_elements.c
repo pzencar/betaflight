@@ -173,6 +173,7 @@
 #include "sensors/battery.h"
 #include "sensors/sensors.h"
 #include "sensors/rangefinder.h"
+#include "sensors/acceleration.h"
 
 #ifdef USE_GPS_PLUS_CODES
 // located in lib/main/google/olc
@@ -784,6 +785,100 @@ static void osdElementArtificialHorizon(osdElementParms_t *element)
         // Rendering not yet complete
         element->rendered = false;
         x++;
+    }
+}
+
+static void osdElementAdvancedHorizon(osdElementParms_t *element)
+{
+    static const int ROW_COUNT = OSD_HD_ROWS; // TODO: Support analog and different HD systems
+    static const int ROW_MAX_INDEX = ROW_COUNT - 1;
+    static const int STEPS_PER_ROW = 9;
+    static const int ROW_MAX_STEP = ROW_COUNT * STEPS_PER_ROW - 1;
+
+    static const int COL_COUNT = OSD_HD_COLS; // TODO: Support analog and different HD systems
+    static const int COL_MAX_INDEX = COL_COUNT - 1; // For HD. Not sure where to get this number yet
+
+    /*-------------------------------------------------*/
+
+    static bool inProgress = false;
+    static uint8_t size;
+    static int step;
+
+    if (!inProgress) {
+        size = osdConfig()->adh_size;  /* Size cannot be 0. Handled in CLI settings */
+        step = -size;
+        inProgress = true;
+    }
+
+    /*-------------------------------------------------*/
+
+    /* 1/10 deg resolution to match attidue values */
+    const int camAngle = osdConfig()->adh_cam_angle * 10;
+    const int camVerFov = osdConfig()->adh_cam_ver_fov * 10;
+
+    const uint16_t homePos = osdElementConfig()->item_pos[OSD_ADVANCED_HORIZON];
+    const int homeX = OSD_X(homePos);
+    const int homeY = OSD_Y(homePos);
+    const int homeYStep = (homeY * STEPS_PER_ROW) + 4; // Find center step of homeY
+
+    const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
+    const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;
+    const int pitchAngle = constrain(attitude.values.pitch * pitchSign, -1800, 1800);
+    const int rollAngle = constrain(attitude.values.roll* rollSign, -600, 600);
+
+    /*-------------------------------------------------*/
+
+    const int rollFactor = (osdConfig()->adh_roll_factor > 0) ? osdConfig()->adh_roll_factor : 1;
+    const float stepsPerDecDegree = (float)ROW_COUNT * (float)STEPS_PER_ROW / (float)camVerFov;
+
+    const int pitchOffsetStep = (int)((float)(camAngle - pitchAngle) * stepsPerDecDegree);
+    const int rollOffsetSteps = (int)((float)rollAngle * (float)step / (float)rollFactor);
+
+    const int absoluteYSteps = (osdConfig()->adh_lock_roll
+                                ? homeYStep + pitchOffsetStep
+                                : homeYStep + pitchOffsetStep - rollOffsetSteps);
+    const int absoluteY = constrain(absoluteYSteps / STEPS_PER_ROW, 0, ROW_MAX_INDEX);
+
+    element->elemOffsetY = absoluteY - homeY;
+
+    /*-------------------------------------------------*/
+
+    const float lateralG = acc.accADC.y / (float)acc.dev.acc_1G;
+    int gXOffset = (int)(lateralG * (osdConfig()->adh_g_multiplier / 10.0f));
+
+    if ((homeX + size + gXOffset) > COL_MAX_INDEX) {
+        gXOffset = COL_MAX_INDEX - (homeX + size);
+    } else if ((homeX - size + gXOffset) < 0) {
+        gXOffset = -(homeX - size);
+    }
+
+    element->elemOffsetX = step + gXOffset;
+
+    /*-------------------------------------------------*/
+
+    int barSymbol;
+
+    if (absoluteYSteps < 0) {
+        barSymbol = SYM_ADH_BAR_0;
+    } else if (absoluteYSteps > ROW_MAX_STEP) {
+        barSymbol = SYM_ADH_BAR_8;
+    } else {
+        barSymbol = SYM_ADH_BAR_0 + (absoluteYSteps % STEPS_PER_ROW);
+    }
+
+    /*-------------------------------------------------*/
+
+    if (step == -size) {
+        tfp_sprintf(element->buff, "%c", osdConfig()->adh_left_symbol);
+        element->rendered = false;
+        step++;
+    } else if (step == size) {
+        tfp_sprintf(element->buff, "%c", osdConfig()->adh_right_symbol);
+        inProgress = false;
+    } else {
+        tfp_sprintf(element->buff, "%c", barSymbol);
+        element->rendered = false;
+        step++;
     }
 }
 
@@ -1843,6 +1938,7 @@ static const uint8_t osdElementDisplayOrder[] = {
     OSD_RSSI_VALUE,
     OSD_CROSSHAIRS,
     OSD_HORIZON_SIDEBARS,
+    OSD_ADVANCED_HORIZON,
     OSD_UP_DOWN_REFERENCE,
     OSD_ITEM_TIMER_1,
     OSD_ITEM_TIMER_2,
@@ -1952,6 +2048,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_CROSSHAIRS]              = osdElementCrosshairs,  // only has background, but needs to be over other elements (like artificial horizon)
 #ifdef USE_ACC
     [OSD_ARTIFICIAL_HORIZON]      = osdElementArtificialHorizon,
+    [OSD_ADVANCED_HORIZON]      = osdElementAdvancedHorizon,
     [OSD_UP_DOWN_REFERENCE]       = osdElementUpDownReference,
 #endif
     [OSD_HORIZON_SIDEBARS]        = NULL,  // only has background
@@ -2121,6 +2218,7 @@ void osdAddActiveElements(void)
 #ifdef USE_ACC
     if (sensors(SENSOR_ACC)) {
         osdAddActiveElement(OSD_ARTIFICIAL_HORIZON);
+        osdAddActiveElement(OSD_ADVANCED_HORIZON);
         osdAddActiveElement(OSD_G_FORCE);
         osdAddActiveElement(OSD_UP_DOWN_REFERENCE);
     }
@@ -2582,7 +2680,8 @@ bool osdElementsNeedAccelerometer(void)
            osdElementIsActive(OSD_ROLL_ANGLE) ||
            osdElementIsActive(OSD_G_FORCE) ||
            osdElementIsActive(OSD_FLIP_ARROW) ||
-           osdElementIsActive(OSD_UP_DOWN_REFERENCE);
+           osdElementIsActive(OSD_UP_DOWN_REFERENCE) ||
+           osdElementIsActive(OSD_ADVANCED_HORIZON);
 }
 
 #endif // USE_ACC

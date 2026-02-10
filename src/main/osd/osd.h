@@ -195,6 +195,7 @@ typedef enum {
     OSD_CUSTOM_MSG2,
     OSD_CUSTOM_MSG3,
     OSD_LIDAR_DIST,
+    OSD_ADVANCED_HORIZON,
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
@@ -325,6 +326,16 @@ typedef struct osdConfig_s {
 
     uint8_t ahMaxPitch;
     uint8_t ahMaxRoll;
+    uint8_t adh_cam_angle;
+    uint8_t adh_cam_ver_fov;
+    uint8_t adh_roll_factor;
+    uint8_t adh_size;
+    uint8_t adh_left_symbol;
+    uint8_t adh_right_symbol;
+    uint8_t adh_lock_roll;
+    uint8_t adh_invert_roll;
+    uint8_t adh_invert_pitch;
+    uint8_t adh_g_multiplier;
     uint32_t enabled_stats;
     uint8_t esc_temp_alarm;
     int16_t esc_rpm_alarm;

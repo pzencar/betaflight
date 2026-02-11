@@ -86,6 +86,12 @@
         type 1: Altitude with one decimal place
         type 2: Altitude with no decimal (whole number only)
 
+    OSD_ADVANCED_HORIZON
+        type 1: Horizon with no markers
+        type 2: Horizon with markers 1
+        type 3: Horizon with markers 1, 2
+        type 4: Horizon with markers 1, 2, 3
+
     OSD_GPS_LON
     OSD_GPS_LAT
         type 1: Decimal representation with 7 digits

@@ -91,6 +91,7 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
     {"BATTERY EFFICIENCY", OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_EFFICIENCY]},
 #endif // GPS
     {"CROSSHAIRS",         OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_CROSSHAIRS]},
+    {"ADVANCED HORIZON",   OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ADVANCED_HORIZON]},
     {"HORIZON",            OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_ARTIFICIAL_HORIZON]},
     {"HORIZON SIDEBARS",   OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_HORIZON_SIDEBARS]},
     {"UP/DOWN REFERENCE",  OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_UP_DOWN_REFERENCE]},

@@ -399,7 +399,7 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->adh_mark2_size = 2;
     osdConfig->adh_mark2_l_sym = 0x7C;
     osdConfig->adh_mark2_r_sym = 0x7C;
-    osdConfig->adh_mark3_deg = 900;
+    osdConfig->adh_mark3_deg = 500;
     osdConfig->adh_mark3_size = 2;
     osdConfig->adh_mark3_l_sym = 0x7C;
     osdConfig->adh_mark3_r_sym = 0x7C;

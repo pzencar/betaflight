@@ -831,7 +831,7 @@ static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapsho
     const float stepsPerDecDegree = (float)osdConfig()->canvas_rows
                                     * (float)ADV_HOR_STEPS_PER_ROW
                                     / (float)osdConfig()->adh_cam_ver_fov;
-    const int angleDiff =(int)osdConfig()->adh_cam_angle - snapshot->pitch;
+    const int angleDiff = (int)osdConfig()->adh_cam_angle - snapshot->pitch;
     const int pitchOffsetStep = pitchSign * (int)((float)angleDiff * stepsPerDecDegree);
 
     return (homeYStep + pitchOffsetStep + rollOffsetSteps);
@@ -2195,7 +2195,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
     [OSD_CROSSHAIRS]              = osdElementCrosshairs,  // only has background, but needs to be over other elements (like artificial horizon)
 #ifdef USE_ACC
     [OSD_ARTIFICIAL_HORIZON]      = osdElementArtificialHorizon,
-    [OSD_ADVANCED_HORIZON]      = osdElementAdvancedHorizon,
+    [OSD_ADVANCED_HORIZON]        = osdElementAdvancedHorizon,
     [OSD_UP_DOWN_REFERENCE]       = osdElementUpDownReference,
 #endif
     [OSD_HORIZON_SIDEBARS]        = NULL,  // only has background

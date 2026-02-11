@@ -813,10 +813,8 @@ static void osdElementArtificialHorizon(osdElementParms_t *element)
 }
 
 static void advHorizonSnapshotFlightData(advHorizonSnapshot_t *const snapshot) {
-    const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
-    const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;
-    snapshot->pitch = constrain(attitude.values.pitch * pitchSign, -1800, 1800);
-    snapshot->roll = constrain(attitude.values.roll * rollSign, -osdConfig()->adh_max_roll, osdConfig()->adh_max_roll);
+    snapshot->pitch = constrain(attitude.values.pitch, -1800, 1800);
+    snapshot->roll = constrain(attitude.values.roll, -osdConfig()->adh_max_roll, osdConfig()->adh_max_roll);
 }
 
 static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapshot, const int xOffset) {
@@ -825,18 +823,18 @@ static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapsho
     const int homeYStep = (homeY * ADV_HOR_STEPS_PER_ROW) + ADV_HOR_MIDDLE_STEP_OFFSET;
 
     /* Using linear approximation to save compute resources. Should be good enough */
+    const int rollSign = osdConfig()->adh_invert_roll ? 1 : -1;
     const int rollFactor = (osdConfig()->adh_roll_factor > 0) ? osdConfig()->adh_roll_factor : 1;
-    const int rollOffsetSteps = (int)((float)snapshot->roll * (float)xOffset / (float)rollFactor);
+    const int rollOffsetSteps = rollSign * (int)((float)snapshot->roll * (float)xOffset / (float)rollFactor);
 
+    const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
     const float stepsPerDecDegree = (float)osdConfig()->canvas_rows
                                     * (float)ADV_HOR_STEPS_PER_ROW
                                     / (float)osdConfig()->adh_cam_ver_fov;
-    const int angleDiff = osdConfig()->adh_invert_pitch
-                          ? (snapshot->pitch - (int)osdConfig()->adh_cam_angle)
-                          : ((int)osdConfig()->adh_cam_angle - snapshot->pitch);
-    const int pitchOffsetStep = (int)((float)angleDiff * stepsPerDecDegree);
+    const int angleDiff =(int)osdConfig()->adh_cam_angle - snapshot->pitch;
+    const int pitchOffsetStep = pitchSign * (int)((float)angleDiff * stepsPerDecDegree);
 
-    return (homeYStep + pitchOffsetStep - rollOffsetSteps);
+    return (homeYStep + pitchOffsetStep + rollOffsetSteps);
 }
 
 static int advHorizonGetYOffset(const int absoluteYSteps) {

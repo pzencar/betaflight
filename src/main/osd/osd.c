@@ -387,6 +387,7 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->adh_cam_angle = 300;
     osdConfig->adh_cam_ver_fov = 700;
     osdConfig->adh_roll_factor = 90;
+    osdConfig->adh_max_roll = 600;
     osdConfig->adh_size = 3;
     osdConfig->adh_l_sym = 0x7C;
     osdConfig->adh_r_sym = 0x7C;
@@ -402,7 +403,6 @@ void pgResetFn_osdConfig(osdConfig_t *osdConfig)
     osdConfig->adh_mark3_size = 2;
     osdConfig->adh_mark3_l_sym = 0x7C;
     osdConfig->adh_mark3_r_sym = 0x7C;
-    osdConfig->adh_lock_roll = false;
     osdConfig->adh_invert_roll = false;
     osdConfig->adh_invert_pitch = false;
 

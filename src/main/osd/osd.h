@@ -329,6 +329,7 @@ typedef struct osdConfig_s {
     uint16_t adh_cam_angle;
     uint16_t adh_cam_ver_fov;
     uint8_t adh_roll_factor;
+    uint16_t adh_max_roll;
     uint8_t adh_size;
     uint8_t adh_l_sym;
     uint8_t adh_r_sym;
@@ -344,7 +345,6 @@ typedef struct osdConfig_s {
     uint8_t adh_mark3_size;
     uint8_t adh_mark3_l_sym;
     uint8_t adh_mark3_r_sym;
-    uint8_t adh_lock_roll;
     uint8_t adh_invert_roll;
     uint8_t adh_invert_pitch;
     uint32_t enabled_stats;

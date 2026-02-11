@@ -189,6 +189,25 @@
 #define AH_SIDEBAR_WIDTH_POS 7
 #define AH_SIDEBAR_HEIGHT_POS 3
 
+#ifdef USE_ACC
+#define ADV_HOR_STEPS_PER_ROW 9
+#define ADV_HOR_MIDDLE_STEP_OFFSET 4
+
+typedef enum {
+    ADV_HOR_STATE_INIT = 0,
+    ADV_HOR_STATE_MARKER1,
+    ADV_HOR_STATE_MARKER2,
+    ADV_HOR_STATE_MARKER3,
+} advHorizonBgState_t;
+
+typedef struct {
+    /* Assuming change of config during render should basically never happen,
+       otherwise all config params would need to be here too */
+    int pitch;
+    int roll;
+} advHorizonSnapshot_t;
+#endif
+
 // Stick overlay size
 #define OSD_STICK_OVERLAY_WIDTH 7
 #define OSD_STICK_OVERLAY_HEIGHT 5
@@ -212,7 +231,6 @@ typedef struct radioControls_s {
     uint8_t right_vertical;
     uint8_t right_horizontal;
 } radioControls_t;
-
 
 static const radioControls_t radioModes[4] = {
     { PITCH,    YAW,    THROTTLE,   ROLL }, // Mode 1
@@ -794,35 +812,11 @@ static void osdElementArtificialHorizon(osdElementParms_t *element)
     }
 }
 
-#define ADV_HOR_STEPS_PER_ROW 9
-#define ADV_HOR_MIDDLE_STEP_OFFSET 4
-
-#define ADV_HOR_ROW_COUNT OSD_HD_ROWS // TODO: Support analog and different HD systems
-#define ADV_HOR_ROW_MAX_INDEX (ADV_HOR_ROW_COUNT - 1)
-#define ADV_HOR_ROW_MAX_STEP ((ADV_HOR_ROW_COUNT * ADV_HOR_STEPS_PER_ROW) - 1)
-
-#define ADV_HOR_COL_COUNT OSD_HD_COLS // TODO: Support analog and different HD systems
-#define ADV_HOR_COL_MAX_INDEX (ADV_HOR_COL_COUNT - 1) // For HD. Not sure where to get this number yet
-
-typedef enum {
-    ADV_HOR_STATE_INIT = 0,
-    ADV_HOR_STATE_MARKER1,
-    ADV_HOR_STATE_MARKER2,
-    ADV_HOR_STATE_MARKER3,
-} advHorizonBgState_t;
-
-typedef struct {
-    /* Assuming change of config during render should basically never happen,
-       otherwise all config params would need to be here too */
-    int pitch;
-    int roll;
-} advHorizonSnapshot_t;
-
 static void advHorizonSnapshotFlightData(advHorizonSnapshot_t *const snapshot) {
     const int pitchSign = osdConfig()->adh_invert_pitch ? -1 : 1;
     const int rollSign = osdConfig()->adh_invert_roll ? -1 : 1;
     snapshot->pitch = constrain(attitude.values.pitch * pitchSign, -1800, 1800);
-    snapshot->roll = constrain(attitude.values.roll * rollSign, -600, 600);
+    snapshot->roll = constrain(attitude.values.roll * rollSign, -osdConfig()->adh_max_roll, osdConfig()->adh_max_roll);
 }
 
 static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapshot, const int xOffset) {
@@ -830,11 +824,13 @@ static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapsho
     const int homeY = OSD_Y(homePos);
     const int homeYStep = (homeY * ADV_HOR_STEPS_PER_ROW) + ADV_HOR_MIDDLE_STEP_OFFSET;
 
+    /* Using linear approximation to save compute resources. Should be good enough */
     const int rollFactor = (osdConfig()->adh_roll_factor > 0) ? osdConfig()->adh_roll_factor : 1;
-    const int lockRoll = (osdConfig()->adh_lock_roll) ? 0 : 1;
-    const int rollOffsetSteps = lockRoll * (int)((float)snapshot->roll * (float)xOffset / (float)rollFactor);
+    const int rollOffsetSteps = (int)((float)snapshot->roll * (float)xOffset / (float)rollFactor);
 
-    const float stepsPerDecDegree = (float)ADV_HOR_ROW_COUNT * (float)ADV_HOR_STEPS_PER_ROW / (float)osdConfig()->adh_cam_ver_fov;
+    const float stepsPerDecDegree = (float)osdConfig()->canvas_rows
+                                    * (float)ADV_HOR_STEPS_PER_ROW
+                                    / (float)osdConfig()->adh_cam_ver_fov;
     const int angleDiff = osdConfig()->adh_invert_pitch
                           ? (snapshot->pitch - (int)osdConfig()->adh_cam_angle)
                           : ((int)osdConfig()->adh_cam_angle - snapshot->pitch);
@@ -846,17 +842,17 @@ static int advHorizonGetAbsoluteYSteps(const advHorizonSnapshot_t *const snapsho
 static int advHorizonGetYOffset(const int absoluteYSteps) {
     const uint16_t homePos = osdElementConfig()->item_pos[OSD_ADVANCED_HORIZON];
     const int homeY = OSD_Y(homePos);
-    const int absoluteY = constrain(absoluteYSteps / ADV_HOR_STEPS_PER_ROW, 0, ADV_HOR_ROW_MAX_INDEX);
+    const int absoluteY = constrain(absoluteYSteps / ADV_HOR_STEPS_PER_ROW, 0, (osdConfig()->canvas_rows - 1));
     return (absoluteY - homeY);
 }
 
 static int advHorizonGetYStepSymbol(const int absoluteYSteps) {
     if (absoluteYSteps < 0) {
-        return SYM_ADH_BAR_0;
-    } else if (absoluteYSteps > ADV_HOR_ROW_MAX_STEP) {
-        return SYM_ADH_BAR_8;
+        return SYM_AH_BAR9_0;
+    } else if (absoluteYSteps > ((osdConfig()->canvas_rows * ADV_HOR_STEPS_PER_ROW) - 1)) {
+        return SYM_AH_BAR9_8;
     } else {
-        return SYM_ADH_BAR_0 + (absoluteYSteps % ADV_HOR_STEPS_PER_ROW);
+        return SYM_AH_BAR9_0 + (absoluteYSteps % ADV_HOR_STEPS_PER_ROW);
     }
 }
 

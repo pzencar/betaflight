@@ -364,13 +364,19 @@ void mixerInitProfile(void)
 
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
     mixerRuntime.vbatSagCompensationFactor = 0.0f;
+    mixerRuntime.vbatSagThrottleCompensationFactor = 0.0f;
+    mixerRuntime.vbatFull = (float)currentPidProfile->vbat_sag_max_voltage;
+
+    if (mixerRuntime.vbatFull > (float)currentPidProfile->vbat_sag_target) {
+        mixerRuntime.vbatRangeToCompensate = mixerRuntime.vbatFull - (float)currentPidProfile->vbat_sag_target;
+    }
+
     if (currentPidProfile->vbat_sag_compensation > 0 && !RPM_LIMIT_ACTIVE) {
-        //TODO: Make this voltage user configurable
-        mixerRuntime.vbatFull = CELL_VOLTAGE_FULL_CV;
-        mixerRuntime.vbatRangeToCompensate = mixerRuntime.vbatFull - batteryConfig()->vbatwarningcellvoltage;
-        if (mixerRuntime.vbatRangeToCompensate > 0) {
             mixerRuntime.vbatSagCompensationFactor = ((float)currentPidProfile->vbat_sag_compensation) / 100.0f;
-        }
+    }
+
+    if (currentPidProfile->vbat_sag_throttle_compensation > 0 && !RPM_LIMIT_ACTIVE) {
+            mixerRuntime.vbatSagThrottleCompensationFactor = ((float)currentPidProfile->vbat_sag_throttle_compensation) / 100.0f;
     }
 #endif
 

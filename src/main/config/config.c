@@ -272,6 +272,9 @@ static void validateAndFixConfig(void)
 #if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
         if (batteryConfig()->voltageMeterSource != VOLTAGE_METER_ADC) {
             pidProfilesMutable(i)->vbat_sag_compensation = 0;
+            pidProfilesMutable(i)->vbat_sag_throttle_compensation = 0;
+            pidProfilesMutable(i)->vbat_sag_max_voltage = 0;
+            pidProfilesMutable(i)->vbat_sag_target = 0;
         }
 #endif
     }

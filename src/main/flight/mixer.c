@@ -256,10 +256,10 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
         if (mixerRuntime.vbatSagCompensationFactor > 0.0f) {
             const uint16_t currentCellVoltage = getBatterySagCellVoltage();
             // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow
-            float batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - currentCellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
+            float batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - (float)currentCellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
             motorRangeAttenuationFactor = (mixerRuntime.vbatRangeToCompensate / mixerRuntime.vbatFull) * batteryGoodness * mixerRuntime.vbatSagCompensationFactor;
             DEBUG_SET(DEBUG_BATTERY, 2, lrintf(batteryGoodness * 100));
-            DEBUG_SET(DEBUG_BATTERY, 3, lrintf(motorRangeAttenuationFactor * 1000));
+            DEBUG_SET(DEBUG_BATTERY, 3, lrintf(motorRangeAttenuationFactor * 1000)); // Index 3 is written from 2 places
         }
         motorRangeMax = isCrashFlipModeActive() ? mixerRuntime.motorOutputHigh : mixerRuntime.motorOutputHigh - motorRangeAttenuationFactor * (mixerRuntime.motorOutputHigh - mixerRuntime.motorOutputLow);
 #else
@@ -520,6 +520,22 @@ static float applyThrottleLimit(float throttle)
     return throttle;
 }
 
+static float applyVBatSagThrottleScale(float throttle)
+{
+    float throttleScale = 1.0f;
+
+    if (mixerRuntime.vbatSagThrottleCompensationFactor > 0.0f && !RPM_LIMIT_ACTIVE) {
+        const uint16_t currentCellVoltage = getBatterySagCellVoltage();
+        // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow
+        float batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - (float)currentCellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
+        throttleScale = 1.0f - ((mixerRuntime.vbatRangeToCompensate / mixerRuntime.vbatFull) * batteryGoodness * mixerRuntime.vbatSagThrottleCompensationFactor);
+        DEBUG_SET(DEBUG_BATTERY, 2, lrintf(batteryGoodness * 100.f));
+        DEBUG_SET(DEBUG_BATTERY, 3, lrintf(throttleScale * 1000.f)); // Index 3 is written from 2 places
+    }
+
+    return throttle * throttleScale;
+}
+
 static void applyMotorStop(void)
 {
     for (int i = 0; i < mixerRuntime.motorCount; i++) {
@@ -729,6 +745,10 @@ FAST_CODE_NOINLINE void mixTable(timeUs_t currentTimeUs)
     if (currentControlRateProfile->throttle_limit_type != THROTTLE_LIMIT_TYPE_OFF) {
         throttle = applyThrottleLimit(throttle);
     }
+
+#if defined(USE_BATTERY_VOLTAGE_SAG_COMPENSATION)
+    throttle = applyVBatSagThrottleScale(throttle);
+#endif
 
     // use scaled throttle, without dynamic idle throttle offset, as the input to antigravity
     pidUpdateAntiGravityThrottleFilter(throttle);

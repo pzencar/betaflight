@@ -117,7 +117,7 @@ static FAST_DATA_ZERO_INIT bool crashflipSuccess = false;
 
 static float getBatteryGoodness(const uint16_t cellVoltage)
 {
-    float batteryGoodness = 0.0f
+    float batteryGoodness = 0.0f;
 
     if (mixerRuntime.vbatRangeToCompensate > 0) {
         // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow

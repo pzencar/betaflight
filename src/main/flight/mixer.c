@@ -115,6 +115,19 @@ static FAST_DATA_ZERO_INIT float motorOutputRange;
 static FAST_DATA_ZERO_INIT int8_t motorOutputMixSign;
 static FAST_DATA_ZERO_INIT bool crashflipSuccess = false;
 
+static float getBatteryGoodness(const uint16_t cellVoltage)
+{
+    float batteryGoodness = 0.0f
+
+    if (mixerRuntime.vbatRangeToCompensate > 0) {
+        // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow
+        batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - (float)cellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
+        DEBUG_SET(DEBUG_VBAT_SAG_COMPENSATION, 0, lrintf(batteryGoodness * 100.f));
+    }
+
+    return batteryGoodness;
+}
+
 static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
 {
     static uint16_t rcThrottlePrevious = 0;   // Store the last throttle direction for deadband transitions
@@ -254,12 +267,9 @@ static void calculateThrottleAndCurrentMotorEndpoints(timeUs_t currentTimeUs)
         float motorRangeAttenuationFactor = 0;
         // reduce motorRangeMax when battery is full
         if (mixerRuntime.vbatSagCompensationFactor > 0.0f) {
-            const uint16_t currentCellVoltage = getBatterySagCellVoltage();
-            // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow
-            float batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - (float)currentCellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
+            const float batteryGoodness = getBatteryGoodness(getBatterySagCellVoltage());
             motorRangeAttenuationFactor = (mixerRuntime.vbatRangeToCompensate / mixerRuntime.vbatFull) * batteryGoodness * mixerRuntime.vbatSagCompensationFactor;
-            DEBUG_SET(DEBUG_BATTERY, 2, lrintf(batteryGoodness * 100));
-            DEBUG_SET(DEBUG_BATTERY, 3, lrintf(motorRangeAttenuationFactor * 1000)); // Index 3 is written from 2 places
+            DEBUG_SET(DEBUG_VBAT_SAG_COMPENSATION, 1, lrintf(motorRangeAttenuationFactor * 1000));
         }
         motorRangeMax = isCrashFlipModeActive() ? mixerRuntime.motorOutputHigh : mixerRuntime.motorOutputHigh - motorRangeAttenuationFactor * (mixerRuntime.motorOutputHigh - mixerRuntime.motorOutputLow);
 #else
@@ -524,13 +534,10 @@ static float applyVBatSagThrottleScale(float throttle)
 {
     float throttleScale = 1.0f;
 
-    if (mixerRuntime.vbatSagThrottleCompensationFactor > 0.0f && !RPM_LIMIT_ACTIVE) {
-        const uint16_t currentCellVoltage = getBatterySagCellVoltage();
-        // batteryGoodness = 1 when voltage is above vbatFull, and 0 when voltage is below vbatLow
-        float batteryGoodness = 1.0f - constrainf((mixerRuntime.vbatFull - (float)currentCellVoltage) / mixerRuntime.vbatRangeToCompensate, 0.0f, 1.0f);
+    if (mixerRuntime.vbatSagThrottleCompensationFactor > 0.0f) {
+        const float batteryGoodness = getBatteryGoodness(getBatterySagCellVoltage());
         throttleScale = 1.0f - ((mixerRuntime.vbatRangeToCompensate / mixerRuntime.vbatFull) * batteryGoodness * mixerRuntime.vbatSagThrottleCompensationFactor);
-        DEBUG_SET(DEBUG_BATTERY, 2, lrintf(batteryGoodness * 100.f));
-        DEBUG_SET(DEBUG_BATTERY, 3, lrintf(throttleScale * 1000.f)); // Index 3 is written from 2 places
+        DEBUG_SET(DEBUG_VBAT_SAG_COMPENSATION, 2, lrintf(throttleScale * 1000.f));
     }
 
     return throttle * throttleScale;

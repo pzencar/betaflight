@@ -214,7 +214,7 @@ void resetPidProfile(pidProfile_t *pidProfile)
         .vbat_sag_compensation = 0,
         .vbat_sag_throttle_compensation = 0,
         .vbat_sag_max_voltage = 420,
-        .vbat_sag_target = 350,
+        .vbat_sag_target = 0,
         .simplified_pids_mode = PID_SIMPLIFIED_TUNING_RPY,
         .simplified_master_multiplier = SIMPLIFIED_TUNING_DEFAULT,
         .simplified_roll_pitch_ratio = SIMPLIFIED_TUNING_DEFAULT,
